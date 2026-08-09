@@ -5,16 +5,20 @@
 
 ---
 
-## ADR-001: Next.js 15 (App Router) as Core Framework
+## ADR-001: Next.js 16.3.0 (App Router) as Canonical Core Framework
 
 ### Context
-Stride requires a fast, SEO-friendly, server-rendered application with strong TypeScript support, built-in routing, and minimal client JS bundle size.
+Stride requires a fast, SEO-friendly, server-rendered application with strong TypeScript support, built-in routing, and minimal client JS bundle size. Initial project setup established Next.js 16.3.0 as the active environment.
 
 ### Decision
-Use **Next.js 15 (App Router)** as the primary application framework inside the `/app` directory.
+Use **Next.js 16.3.0 (App Router)** as the canonical application framework inside the `/app` directory.
+
+- **No Downgrades**: Next.js 16.3.0 is established as the canonical baseline version and will not be downgraded.
+- **Major Version Pinning**: Do not upgrade Next.js major versions without explicit review and approval.
+- **Documentation Alignment**: For all implementation work, developers and AI agents must consult local/installed Next.js 16.x documentation prior to adopting framework APIs.
 
 ### Trade-offs & Rationale
-- **Pros**: Native Server Components (RSC) eliminate heavy client bundle bloat; built-in Server Actions replace complex API boilerplates; instant Vercel deployment.
+- **Pros**: Native Server Components (RSC) eliminate heavy client bundle bloat; Turbopack bundler support; built-in Server Actions replace complex API boilerplates; instant Vercel deployment.
 - **Cons**: App Router caching mental model can be non-trivial; server/client boundary separation requires strict discipline.
 
 ---

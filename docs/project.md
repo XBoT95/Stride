@@ -87,7 +87,7 @@ Not included:
 # Tech Stack
 
 Frontend
-- Next.js
+- Next.js 16.3.0 (App Router)
 - TypeScript
 - Tailwind CSS
 - shadcn/ui
