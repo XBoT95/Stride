@@ -5,7 +5,7 @@
 -- Milestones Table
 CREATE TABLE IF NOT EXISTS public.milestones (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  goal_id UUID NOT NULL REFERENCES public.goals(id) ON DELETE CASCADE,
+  goal_id UUID NOT NULL,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
@@ -13,7 +13,9 @@ CREATE TABLE IF NOT EXISTS public.milestones (
   status public.milestone_status NOT NULL DEFAULT 'pending',
   priority public.priority_level NOT NULL DEFAULT 'medium',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT fk_milestones_goal_user FOREIGN KEY (goal_id, user_id) REFERENCES public.goals(id, user_id) ON DELETE CASCADE,
+  CONSTRAINT uq_milestones_id_goal_user UNIQUE (id, goal_id, user_id)
 );
 
 -- Trigger to maintain updated_at timestamp
@@ -29,23 +31,27 @@ CREATE INDEX IF NOT EXISTS idx_milestones_user_id ON public.milestones(user_id);
 -- Enable Row Level Security
 ALTER TABLE public.milestones ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for milestones
+-- RLS Policies for milestones (Idempotent DROP + CREATE)
+DROP POLICY IF EXISTS "Users can view their own milestones" ON public.milestones;
 CREATE POLICY "Users can view their own milestones"
   ON public.milestones
   FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create their own milestones" ON public.milestones;
 CREATE POLICY "Users can create their own milestones"
   ON public.milestones
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own milestones" ON public.milestones;
 CREATE POLICY "Users can update their own milestones"
   ON public.milestones
   FOR UPDATE
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own milestones" ON public.milestones;
 CREATE POLICY "Users can delete their own milestones"
   ON public.milestones
   FOR DELETE

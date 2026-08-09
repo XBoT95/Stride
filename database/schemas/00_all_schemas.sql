@@ -1,37 +1,33 @@
 -- ==========================================
 -- Stride v0.1 Complete Consolidated Database Schema
 -- Combined 01_enums.sql, 02_profiles.sql, 03_goals.sql, 04_milestones.sql, 05_tasks.sql
+-- Fully Idempotent & Enforces Composite Hierarchy Integrity
 -- ==========================================
 
 -- MODULE 01: ENUMS & COMMON FUNCTIONS
-CREATE TYPE public.goal_status AS ENUM (
-  'planning',
-  'active',
-  'paused',
-  'completed',
-  'archived'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'goal_status') THEN
+    CREATE TYPE public.goal_status AS ENUM ('planning', 'active', 'paused', 'completed', 'archived');
+  END IF;
+END $$;
 
-CREATE TYPE public.priority_level AS ENUM (
-  'low',
-  'medium',
-  'high',
-  'critical'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'priority_level') THEN
+    CREATE TYPE public.priority_level AS ENUM ('low', 'medium', 'high', 'critical');
+  END IF;
+END $$;
 
-CREATE TYPE public.milestone_status AS ENUM (
-  'pending',
-  'in_progress',
-  'completed',
-  'skipped'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'milestone_status') THEN
+    CREATE TYPE public.milestone_status AS ENUM ('pending', 'in_progress', 'completed', 'skipped');
+  END IF;
+END $$;
 
-CREATE TYPE public.task_status AS ENUM (
-  'todo',
-  'in_progress',
-  'completed',
-  'archived'
-);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'task_status') THEN
+    CREATE TYPE public.task_status AS ENUM ('todo', 'in_progress', 'completed', 'archived');
+  END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
@@ -78,12 +74,15 @@ CREATE TRIGGER on_auth_user_created
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 CREATE POLICY "Users can view their own profile"
   ON public.profiles FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile"
   ON public.profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "System can insert profiles via auth trigger" ON public.profiles;
 CREATE POLICY "System can insert profiles via auth trigger"
   ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
@@ -97,7 +96,8 @@ CREATE TABLE IF NOT EXISTS public.goals (
   status public.goal_status NOT NULL DEFAULT 'active',
   priority public.priority_level NOT NULL DEFAULT 'medium',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT uq_goals_id_user UNIQUE (id, user_id)
 );
 
 DROP TRIGGER IF EXISTS set_goals_updated_at ON public.goals;
@@ -110,22 +110,26 @@ CREATE INDEX IF NOT EXISTS idx_goals_user_id ON public.goals(user_id);
 
 ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own goals" ON public.goals;
 CREATE POLICY "Users can view their own goals"
   ON public.goals FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create their own goals" ON public.goals;
 CREATE POLICY "Users can create their own goals"
   ON public.goals FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own goals" ON public.goals;
 CREATE POLICY "Users can update their own goals"
   ON public.goals FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own goals" ON public.goals;
 CREATE POLICY "Users can delete their own goals"
   ON public.goals FOR DELETE USING (auth.uid() = user_id);
 
 -- MODULE 04: MILESTONES
 CREATE TABLE IF NOT EXISTS public.milestones (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  goal_id UUID NOT NULL REFERENCES public.goals(id) ON DELETE CASCADE,
+  goal_id UUID NOT NULL,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
@@ -133,7 +137,9 @@ CREATE TABLE IF NOT EXISTS public.milestones (
   status public.milestone_status NOT NULL DEFAULT 'pending',
   priority public.priority_level NOT NULL DEFAULT 'medium',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT fk_milestones_goal_user FOREIGN KEY (goal_id, user_id) REFERENCES public.goals(id, user_id) ON DELETE CASCADE,
+  CONSTRAINT uq_milestones_id_goal_user UNIQUE (id, goal_id, user_id)
 );
 
 DROP TRIGGER IF EXISTS set_milestones_updated_at ON public.milestones;
@@ -146,23 +152,27 @@ CREATE INDEX IF NOT EXISTS idx_milestones_user_id ON public.milestones(user_id);
 
 ALTER TABLE public.milestones ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own milestones" ON public.milestones;
 CREATE POLICY "Users can view their own milestones"
   ON public.milestones FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create their own milestones" ON public.milestones;
 CREATE POLICY "Users can create their own milestones"
   ON public.milestones FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own milestones" ON public.milestones;
 CREATE POLICY "Users can update their own milestones"
   ON public.milestones FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own milestones" ON public.milestones;
 CREATE POLICY "Users can delete their own milestones"
   ON public.milestones FOR DELETE USING (auth.uid() = user_id);
 
 -- MODULE 05: TASKS
 CREATE TABLE IF NOT EXISTS public.tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  milestone_id UUID REFERENCES public.milestones(id) ON DELETE CASCADE,
-  goal_id UUID NOT NULL REFERENCES public.goals(id) ON DELETE CASCADE,
+  milestone_id UUID NOT NULL,
+  goal_id UUID NOT NULL,
   user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   description TEXT,
@@ -170,7 +180,8 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   status public.task_status NOT NULL DEFAULT 'todo',
   priority public.priority_level NOT NULL DEFAULT 'medium',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT fk_tasks_milestone_hierarchy FOREIGN KEY (milestone_id, goal_id, user_id) REFERENCES public.milestones(id, goal_id, user_id) ON DELETE CASCADE
 );
 
 DROP TRIGGER IF EXISTS set_tasks_updated_at ON public.tasks;
@@ -184,14 +195,18 @@ CREATE INDEX IF NOT EXISTS idx_tasks_milestone_id ON public.tasks(milestone_id);
 
 ALTER TABLE public.tasks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own tasks" ON public.tasks;
 CREATE POLICY "Users can view their own tasks"
   ON public.tasks FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create their own tasks" ON public.tasks;
 CREATE POLICY "Users can create their own tasks"
   ON public.tasks FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own tasks" ON public.tasks;
 CREATE POLICY "Users can update their own tasks"
   ON public.tasks FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own tasks" ON public.tasks;
 CREATE POLICY "Users can delete their own tasks"
   ON public.tasks FOR DELETE USING (auth.uid() = user_id);

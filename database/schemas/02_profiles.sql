@@ -43,18 +43,21 @@ CREATE TRIGGER on_auth_user_created
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for profiles
+-- RLS Policies for profiles (Idempotent DROP + CREATE)
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.profiles;
 CREATE POLICY "Users can view their own profile"
   ON public.profiles
   FOR SELECT
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 CREATE POLICY "Users can update their own profile"
   ON public.profiles
   FOR UPDATE
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "System can insert profiles via auth trigger" ON public.profiles;
 CREATE POLICY "System can insert profiles via auth trigger"
   ON public.profiles
   FOR INSERT

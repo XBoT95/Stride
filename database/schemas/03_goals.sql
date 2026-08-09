@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS public.goals (
   status public.goal_status NOT NULL DEFAULT 'active',
   priority public.priority_level NOT NULL DEFAULT 'medium',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT uq_goals_id_user UNIQUE (id, user_id)
 );
 
 -- Trigger to maintain updated_at timestamp
@@ -28,23 +29,27 @@ CREATE INDEX IF NOT EXISTS idx_goals_user_id ON public.goals(user_id);
 -- Enable Row Level Security
 ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for goals
+-- RLS Policies for goals (Idempotent DROP + CREATE)
+DROP POLICY IF EXISTS "Users can view their own goals" ON public.goals;
 CREATE POLICY "Users can view their own goals"
   ON public.goals
   FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can create their own goals" ON public.goals;
 CREATE POLICY "Users can create their own goals"
   ON public.goals
   FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own goals" ON public.goals;
 CREATE POLICY "Users can update their own goals"
   ON public.goals
   FOR UPDATE
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own goals" ON public.goals;
 CREATE POLICY "Users can delete their own goals"
   ON public.goals
   FOR DELETE
