@@ -27,8 +27,27 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Refresh auth token if expired
-  await supabase.auth.getUser();
+  // Fetch current user from Supabase session
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup');
+
+  // Protect dashboard / app routes: redirect unauthenticated users to /login
+  if (!user && !isAuthRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  // Redirect authenticated users away from /login or /signup to dashboard
+  if (user && isAuthRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    return NextResponse.redirect(url);
+  }
 
   return supabaseResponse;
 }
