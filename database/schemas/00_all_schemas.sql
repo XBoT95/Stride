@@ -1,7 +1,7 @@
 -- ==========================================
 -- Stride v0.1 Complete Consolidated Database Schema
 -- Combined 01_enums.sql, 02_profiles.sql, 03_goals.sql, 04_milestones.sql, 05_tasks.sql
--- Fully Idempotent & Enforces Composite Hierarchy Integrity
+-- Fully Idempotent & Enforces Composite Hierarchy Integrity & Function Hardening (search_path = '')
 -- ==========================================
 
 -- MODULE 01: ENUMS & COMMON FUNCTIONS
@@ -35,7 +35,7 @@ BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = '';
 
 -- MODULE 02: PROFILES & AUTH SYNC
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -65,7 +65,11 @@ BEGIN
     updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM authenticated;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created

@@ -17,7 +17,7 @@ CREATE TRIGGER set_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
--- Supabase Auth Sync Trigger Function
+-- Supabase Auth Sync Trigger Function (Hardened SECURITY DEFINER + search_path = '')
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -32,7 +32,12 @@ BEGIN
     updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = '';
+
+-- Revoke direct RPC execution from PUBLIC, anon, and authenticated roles
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM authenticated;
 
 -- Trigger attached to auth.users table
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;

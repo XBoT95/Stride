@@ -56,5 +56,21 @@ The Stride v0.1 database is built on PostgreSQL inside Supabase, designed for hi
   - `DROP TRIGGER IF EXISTS` is used prior to `CREATE TRIGGER`.
   - `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` guard entity creation.
 - **Future Schema Evolution**:
-  - Schema modifications post-v0.1 will be written as timestamped SQL migration files inside `database/migrations/` (e.g., `20260815_01_add_workspace_id.sql`).
+  - Schema modifications post-v0.1 will be written as timestamped SQL migration files inside `database/migrations/` (e.g., `20260815_security_hardening.sql`).
   - Baseline scripts (`database/schemas/`) will be updated in tandem to reflect the state of new baseline deployments.
+
+---
+
+## 4. Function Security Hardening
+
+To satisfy security audit standards and eliminate Supabase Database Advisor warnings, database functions enforce an empty search path (`SET search_path = ''`) and privilege boundaries:
+
+1. **`handle_updated_at()`**:
+   - Executes as `SECURITY INVOKER` (default).
+   - Configured with `SET search_path = ''` to completely eliminate search-path manipulation during trigger updates.
+
+2. **`handle_new_user()`**:
+   - Requires **`SECURITY DEFINER`** because it is triggered by an `INSERT` on `auth.users` (managed by Supabase Auth engine) and must write across schema boundaries into `public.profiles`.
+   - Configured with `SET search_path = ''` and fully qualified schema references (`public.profiles`).
+   - **Direct `EXECUTE` Privilege Revocation**: Direct execution rights are explicitly revoked (`REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated`). Normal users cannot call this function as a Remote Procedure Call (RPC).
+   - **Trigger Integrity**: The PostgreSQL trigger `on_auth_user_created ON auth.users` executes the function under trigger definer context, ensuring user registration auto-sync continues to create `public.profiles` records without exposing security risks.
