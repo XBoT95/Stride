@@ -38,7 +38,7 @@ export interface Milestone {
 
 export interface Task {
   id: string;
-  milestoneId?: string;
+  milestoneId: string;
   goalId: string;
   userId: string;
   title: string;

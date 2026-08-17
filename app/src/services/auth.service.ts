@@ -13,6 +13,36 @@ export interface SignInInput {
 
 export class AuthService {
   /**
+   * Maps raw Supabase Auth provider errors into calm, user-facing natural language per docs/error-philosophy.md.
+   */
+  private static mapAuthError(rawMessage: string): string {
+    const lower = rawMessage.toLowerCase();
+
+    if (
+      lower.includes('invalid login credentials') ||
+      lower.includes('invalid credentials')
+    ) {
+      return 'The email or password you entered is incorrect. Please double-check and try again.';
+    }
+    if (
+      lower.includes('already registered') ||
+      lower.includes('already in use') ||
+      lower.includes('user_already_exists')
+    ) {
+      return 'An account with this email address already exists. Please sign in instead.';
+    }
+    if (
+      lower.includes('password should be at least') ||
+      lower.includes('weak_password') ||
+      lower.includes('password')
+    ) {
+      return 'Password must be at least 6 characters long.';
+    }
+
+    return 'Unable to authenticate. Please try again in a moment.';
+  }
+
+  /**
    * Register a new user using Supabase Auth.
    * Passing fullName in user metadata triggers public.handle_new_user() in PostgreSQL.
    */
@@ -29,7 +59,7 @@ export class AuthService {
     });
 
     if (error) {
-      return { user: null, error: error.message };
+      return { user: null, error: this.mapAuthError(error.message) };
     }
 
     return { user: data.user, error: null };
@@ -46,7 +76,7 @@ export class AuthService {
     });
 
     if (error) {
-      return { user: null, error: error.message };
+      return { user: null, error: this.mapAuthError(error.message) };
     }
 
     return { user: data.user, session: data.session, error: null };
@@ -59,7 +89,7 @@ export class AuthService {
     const supabase = await createServerClient();
     const { error } = await supabase.auth.signOut();
     if (error) {
-      return { error: error.message };
+      return { error: 'Unable to sign out right now. Please try again.' };
     }
     return { error: null };
   }

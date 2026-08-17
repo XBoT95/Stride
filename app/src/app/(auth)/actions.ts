@@ -4,9 +4,14 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { AuthService } from '@/services/auth.service';
 
+function getStringValue(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 export async function loginAction(_prevState: unknown, formData: FormData) {
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
+  const email = getStringValue(formData, 'email');
+  const password = typeof formData.get('password') === 'string' ? (formData.get('password') as string) : '';
 
   if (!email || !password) {
     return { error: 'Please enter both email and password.' };
@@ -23,12 +28,12 @@ export async function loginAction(_prevState: unknown, formData: FormData) {
 }
 
 export async function signupAction(_prevState: unknown, formData: FormData) {
-  const fullName = formData.get('fullName') as string;
-  const email = formData.get('email') as string;
-  const password = formData.get('password') as string;
+  const fullName = getStringValue(formData, 'fullName');
+  const email = getStringValue(formData, 'email');
+  const password = typeof formData.get('password') === 'string' ? (formData.get('password') as string) : '';
 
   if (!email || !password) {
-    return { error: 'Please provide email and password.' };
+    return { error: 'Please enter both email and password.' };
   }
 
   if (password.length < 6) {

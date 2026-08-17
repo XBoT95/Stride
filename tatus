@@ -1,0 +1,9 @@
+warning: in the working copy of 'app/src/app/(auth)/actions.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/app/layout.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/services/auth.service.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/types/index.ts', LF will be replaced by CRLF the next time Git touches it
+ app/src/app/(auth)/actions.ts    | 17 [32m+++++++++++[m[31m------[m
+ app/src/app/layout.tsx           |  4 [32m++[m[31m--[m
+ app/src/services/auth.service.ts | 36 [32m+++++++++++++++++++++++++++++++++[m[31m---[m
+ app/src/types/index.ts           |  2 [32m+[m[31m-[m
+ 4 files changed, 47 insertions(+), 12 deletions(-)
