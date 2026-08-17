@@ -1,5 +1,4 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
-import { createClient as createBrowserClient } from '@/lib/supabase/client';
 
 export interface SignUpInput {
   email: string;
@@ -101,13 +100,5 @@ export class AuthService {
     }
 
     return profile;
-  }
-
-  /**
-   * Client-side browser signOut helper for Client Components.
-   */
-  static async clientSignOut() {
-    const supabase = createBrowserClient();
-    await supabase.auth.signOut();
   }
 }
