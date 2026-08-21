@@ -56,7 +56,7 @@ The Stride v0.1 database is built on PostgreSQL inside Supabase, designed for hi
   - `DROP TRIGGER IF EXISTS` is used prior to `CREATE TRIGGER`.
   - `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` guard entity creation.
 - **Future Schema Evolution**:
-  - Schema modifications post-v0.1 will be written as timestamped SQL migration files inside `database/migrations/` (e.g., `20260815_security_hardening.sql`).
+  - Schema modifications post-v0.1 will be written as timestamped SQL migration files inside `database/migrations/` (e.g., `20260821_rls_perf_and_fk_indexes.sql`).
   - Baseline scripts (`database/schemas/`) will be updated in tandem to reflect the state of new baseline deployments.
 
 ---
@@ -74,3 +74,20 @@ To satisfy security audit standards and eliminate Supabase Database Advisor warn
    - Configured with `SET search_path = ''` and fully qualified schema references (`public.profiles`).
    - **Direct `EXECUTE` Privilege Revocation**: Direct execution rights are explicitly revoked (`REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated`). Normal users cannot call this function as a Remote Procedure Call (RPC).
    - **Trigger Integrity**: The PostgreSQL trigger `on_auth_user_created ON auth.users` executes the function under trigger definer context, ensuring user registration auto-sync continues to create `public.profiles` records without exposing security risks.
+
+---
+
+## 5. Database Performance Optimization & Advisor Records
+
+Migration `20260821_rls_perf_and_fk_indexes.sql` establishes performance optimizations for Supabase Advisor findings:
+
+1. **RLS `auth.uid()` Initialization Optimization (Applied)**:
+   - All 15 RLS policies across `profiles`, `goals`, `milestones`, and `tasks` are updated to use `(select auth.uid()) = ...`.
+   - Caches the scalar user ID per query statement instead of re-evaluating `auth.uid()` for every scanned row.
+2. **Foreign-Key Supporting Indexes (Applied)**:
+   - Added `idx_milestones_goal_user` ON `milestones(goal_id, user_id)` to cover `fk_milestones_goal_user`.
+   - Added `idx_tasks_milestone_hierarchy` ON `tasks(milestone_id, goal_id, user_id)` to cover `fk_tasks_milestone_hierarchy`.
+3. **Unused Index Warnings (Intentionally Retained)**:
+   - Existing query-support indexes (`idx_milestones_goal_seq`, `idx_tasks_user_scheduled`, `idx_tasks_goal_id`, `idx_tasks_milestone_id`) are intentionally retained as required for upcoming Stride query workloads (Today's Tasks, Goal Detail view, Milestone sequence sorting).
+4. **Leaked Password Protection (Deferred)**:
+   - Deferred because Supabase Leaked Password Protection requires the Supabase Pro+ plan tier. Stride v0.1 is developed on the $0 Supabase Free tier.
