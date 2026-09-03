@@ -45,7 +45,7 @@ export interface GenerateRoadmapResult {
 
 export class RoadmapService {
   /**
-   * Generates a structured execution roadmap for a user goal using Google Gemini 2.5 Flash.
+   * Generates a structured execution roadmap for a user goal using Google Gemini 3.6 Flash.
    * Strictly validates the model response through Zod before returning.
    */
   static async generateRoadmap(
@@ -82,13 +82,13 @@ ${input.priority ? `- Priority Level: "${input.priority}"` : ''}
 Execution Guidelines:
 1. Break the goal into 3 to 6 logical, sequential milestones ordered chronologically.
 2. Under each milestone, provide 2 to 5 concrete, highly actionable tasks.
-3. Keep task titles clear and actionable (e.g. "Draft initial API contract specification" rather than "work on API").
-4. Provide concise descriptions for both milestones and tasks explaining expected outcomes.
+3. Ensure every task is a single, beginner-friendly executable action achievable in approximately 5 to 15 minutes (e.g. "Install Node.js" rather than "Configure development environment"). Avoid technical jargon or combined multi-step tasks.
+4. Provide plain step-by-step instructions in the task description explaining exactly what the user should do (e.g. "Download Node.js LTS from nodejs.org and run the installer using default settings.").
 5. Do NOT include database IDs, user IDs, timestamps, or scheduled dates.
 6. Respond ONLY with structured JSON matching the requested schema.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
