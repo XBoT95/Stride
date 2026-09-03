@@ -1,209 +1,98 @@
-# Stride (Internal Codename)
+# Stride — Product Specification & Status
 
-> **Status:** Planning & Design Phase (v0.1 Beta)
->
-> **Codename:** Stride (Temporary - public name will be decided before launch)
-
----
-
-# Product Overview
-
-Stride is an AI-powered Execution Partner designed to help individuals and small teams achieve ambitious goals by transforming them into adaptive daily action plans.
-
-Unlike traditional productivity tools, Stride focuses on execution rather than organization. The AI proactively guides users, adapts plans based on progress, and helps maintain momentum until goals are completed.
+> **Status:** v0.1 Implemented Baseline  
+> **Codename:** Stride  
+> **Audience:** Product Managers, Architects, AI Agents
 
 ---
 
-# Vision
+## 1. Product Overview
 
-Build an AI that acts like a Chief of Staff.
+Stride is an AI-powered Execution Partner designed to help individuals achieve ambitious goals by transforming high-level objectives into structured, sequential execution roadmaps and daily action plans.
 
-Instead of asking users to constantly organize, plan, and prioritize their work, Stride should understand their goals, generate an execution strategy, adapt when circumstances change, and continuously help them move toward completion.
+Unlike traditional productivity tools that require manual planning and organization, Stride focuses on **execution**:
+1. User provides a high-level goal title and description.
+2. AI Execution Engine (Gemini 3.6 Flash) generates a structured roadmap with sequential milestones and 5–15 minute beginner-friendly action tasks.
+3. Stride schedules Milestone 1 tasks for today's execution while keeping future milestones queued.
+4. As users complete milestone tasks, Stride automatically advances the roadmap and surfaces the next milestone's tasks.
 
 ---
 
-# Problem Statement
+## 2. Product Vision
+
+Build an AI Chief of Staff that acts as an proactive execution partner.
+
+Instead of requiring users to organize and re-prioritize work manually, Stride understands their goals, breaks them down into actionable steps, adapts when progress is made, and maintains execution momentum until goals are finished.
+
+---
+
+## 3. Problem Statement
 
 People rarely fail because they lack ambition.
 
 They fail because:
-
-- They don't know what to work on next.
-- They lose consistency after a few days.
-- Existing productivity tools organize work but don't help execute it.
-- Plans become outdated as life changes.
-- Switching between multiple apps creates unnecessary friction.
+- High-level goals feel overwhelming.
+- Tasks are too vague or complex to start immediately.
+- Existing tools organize work but do not guide daily execution.
+- Tracking progress across multiple goals becomes cluttered and discouraging.
 
 ---
 
-# Target Users
+## 4. Target Users (v0.1 Focus)
 
-Version 0.1 focuses on:
-
-- University students
-- Solo founders
-- Indie developers
-- Freelancers
-- Small startup teams
+- Solo founders & builders
+- Indie developers & engineers
+- University students & researchers
+- Freelancers & creative professionals
 
 ---
 
-# Core Principles
+## 5. Core Product Principles
 
-Every feature should follow these principles.
-
-1. Execution over organization.
-2. AI should reduce thinking, not create more work.
-3. The interface should remain minimal and calm.
-4. Users should always know what to do next.
-5. Every feature must solve a real problem.
-6. Simplicity is preferred over feature quantity.
+1. **Execution over organization**: Focus on taking action today rather than organizing backlogs.
+2. **Beginner-friendly task breakdown**: AI generates clear 5–15 minute single-action tasks.
+3. **Calm, uncluttered interface**: Dark high-contrast presentation inspired by Linear and Vercel.
+4. **Milestone progression pacing**: Surface today's active tasks without flooding the user with future milestone steps.
+5. **Zero-bloat architecture**: Build minimal, high-performance features using native Server Components and Server Actions.
 
 ---
 
-# MVP Scope (v0.1 Beta)
+## 6. Version Feature Matrix
 
-Included:
+### v0.1 Implemented Functionality (Current Baseline)
+- **User Authentication**: Login, Signup, Session refresh via Supabase Auth & Next.js middleware.
+- **Goal Creation**: High-level goal intake (title, description, target date, priority).
+- **AI Roadmap Engine**: Structured JSON roadmap generation using Gemini 3.6 Flash (`@google/genai`) and Zod schema validation.
+- **Atomic Persistence**: Stored procedure `public.create_goal_with_roadmap` for transactional Goal, Milestone, and Task persistence.
+- **Today's Focus Dashboard**: Grouped daily task rendering by Goal with completion metrics.
+- **Deterministic Two-Level Task Sorting**: Tasks sorted by `(milestone.sequence_order ASC, task.sequence_order ASC)`.
+- **Automatic Milestone Progression**: Stored procedure `public.toggle_task_and_advance_milestone` automatically schedules Milestone N+1 tasks when Milestone N is 100% completed.
+- **Goal Detail & Roadmap Tree**: Hierarchical roadmap tree rendering milestones and nested tasks.
+- **Delete Goal Danger Zone**: Accessible 2-step confirmation modal for permanent cascading goal deletion.
 
-- Authentication
-- Goal creation
-- AI-generated roadmap
-- Daily task generation
-- Progress tracking
-- Basic collaboration
-- AI reflections
-
-Not included:
-
-- Email automation
-- Voice assistant
-- Calendar automation
-- Zoom / Teams integration
-- Mobile applications
-- Enterprise features
-
----
-
-# Tech Stack
-
-Frontend
-- Next.js 16.3.0 (App Router)
-- TypeScript
-- Tailwind CSS
-- shadcn/ui
-
-Backend
-- Supabase
-- PostgreSQL
-
-Authentication
-- Supabase Auth
-
-AI
-- Gemini API
-
-Deployment
-- Vercel
-
-Package Manager
-- pnpm
+### v0.2 Deferred Functionality
+- **Subtask Decomposition**: Breaking tasks into micro-steps.
+- **AI Reflections & Weekly Reviews**: Proactive reflection loops.
+- **Calendar & Time-blocking Integration**: Syncing tasks to external calendars.
+- **Team Workspaces & Collaboration**: Shared multi-user goal dashboards.
+- **Notifications & Reminders**: Email and push reminders.
+- **Mobile Applications**: Native iOS/Android apps.
 
 ---
 
-# Design Philosophy
+## 7. Tech Stack
 
-The interface should feel:
-
-- Calm
-- Premium
-- Fast
-- Minimal
-- Professional
-
-Design inspiration:
-
-- Linear
-- Notion
-- Vercel
-- Cursor
-
-Avoid:
-
-- Visual clutter
-- Excessive animations
-- Bright distracting colors
-- Complex navigation
+- **Framework**: Next.js `16.3.0` (App Router, Turbopack)
+- **Language**: TypeScript (Strict Mode)
+- **Styling**: Tailwind CSS `v4`, Lucide React icons, `clsx`, `tailwind-merge`
+- **Database & Auth**: Supabase PostgreSQL, `@supabase/ssr` `0.5.2`
+- **AI Engine**: Google Gemini API (`@google/genai` `2.17.1`, model `gemini-3.6-flash`)
+- **Validation**: Zod `4.4.3`
+- **Package Manager**: `pnpm`
 
 ---
 
-# Development Rules
+## 8. Current Development Status
 
-- Reuse components whenever possible.
-- Keep components small and modular.
-- Avoid duplicate logic.
-- Prefer readability over clever code.
-- Build reusable systems instead of one-off solutions.
-- Every major change should be committed separately.
-
----
-
-# AI Instructions
-
-Any AI working on this repository should:
-
-1. Read this document before making changes.
-2. Review the existing code before creating new files.
-3. Follow the selected tech stack.
-4. Avoid changing architecture without approval.
-5. Explain significant implementation decisions.
-6. Prefer editing existing code over rewriting files.
-7. Keep changes focused on the requested task.
-
----
-
-# Folder Structure
-
-/app
-Application source code.
-
-/assets
-Images, icons, logos and branding.
-
-/database
-Database schema and SQL.
-
-/design
-Wireframes, mockups and UI resources.
-
-/docs
-Project documentation.
-
-/notes
-Ideas and research.
-
----
-
-# Current Milestone
-
-Planning and Design
-
-Current objective:
-
-Design and build Version 0.1 Beta with a strong, scalable foundation before adding advanced AI automation.
-
----
-
-# Long-Term Vision
-
-Stride should evolve from a productivity application into a complete AI Execution Operating System capable of planning, adapting, coordinating, and assisting users across their personal and professional goals.
-## Current Sprint
-
-Status:
-
-Objectives:
-
-Completed:
-
-Blocked By:
-
-Next Task:
+- **Status**: **v0.1 Implemented & Verified Baseline**
+- **Build Status**: Passing `tsc --noEmit`, `eslint`, and `next build` clean.

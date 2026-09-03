@@ -59,8 +59,11 @@ The core MVP functionality requires parsing unstructured user goal descriptions 
 ### Decision
 Use **Google Gemini API (`@google/genai`)** with Zod schema validation for structured JSON generation.
 
+### Current Implementation Amendment (2026-08-26)
+The active implementation uses **Gemini 3.6 Flash** (`gemini-3.6-flash`) via `@google/genai` v2.17.1 with structured `responseSchema` and `RoadmapSchema` Zod validation, delivering fast, beginner-friendly structured execution roadmaps.
+
 ### Trade-offs & Rationale
-- **Pros**: High-speed output generation, native structured JSON enforcement, cost-effective API tier (`gemini-2.5-flash` / `gemini-2.5-pro`).
+- **Pros**: High-speed output generation, native structured JSON enforcement, cost-effective API tier (`gemini-3.6-flash`).
 - **Cons**: External API dependency requires rate limiting, timeout handling, and fallback logic (governed by `docs/error-philosophy.md`).
 
 ---

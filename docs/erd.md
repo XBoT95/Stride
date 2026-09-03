@@ -1,6 +1,6 @@
 # Database Review & Entity Relationship Diagram (ERD) — Stride
 
-> **Status:** Active Specification (v0.1)  
+> **Status:** Active Baseline Specification (v0.1)  
 > **Audience:** Core Architects, Database Administrators, AI Execution Agents
 
 ---
@@ -59,6 +59,7 @@ erDiagram
         date scheduled_date
         task_status status "todo | in_progress | completed | archived"
         priority_level priority "low | medium | high | critical"
+        integer sequence_order
         timestamptz created_at
         timestamptz updated_at
     }
@@ -92,13 +93,17 @@ erDiagram
   - `goal_id` (UUID NOT NULL)
   - `user_id` (UUID NOT NULL)
 - **Composite Foreign Key**: `(milestone_id, goal_id, user_id)` $\rightarrow$ `milestones(id, goal_id, user_id)` (ON DELETE CASCADE).
+- **Attributes**: `sequence_order` (INT NOT NULL DEFAULT 1) — represents task position within its milestone.
 
 ---
 
-## 3. Recommended Performance Indexes
+## 3. Active Performance Indexes
 
 1. **`idx_goals_user_status`**: `(user_id, status)`
 2. **`idx_milestones_goal_seq`**: `(goal_id, sequence_order)`
-3. **`idx_tasks_user_scheduled`**: `(user_id, scheduled_date, status)`
-4. **`idx_tasks_goal_id`**: `(goal_id)`
-5. **`idx_tasks_milestone_id`**: `(milestone_id)`
+3. **`idx_milestones_goal_user`**: `(goal_id, user_id)`
+4. **`idx_tasks_user_scheduled`**: `(user_id, scheduled_date, status)`
+5. **`idx_tasks_milestone_hierarchy`**: `(milestone_id, goal_id, user_id)`
+6. **`idx_tasks_milestone_seq`**: `(milestone_id, sequence_order)`
+7. **`idx_tasks_goal_id`**: `(goal_id)`
+8. **`idx_tasks_milestone_id`**: `(milestone_id)`
