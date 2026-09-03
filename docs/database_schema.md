@@ -11,9 +11,9 @@ The Stride v0.1 database is built on PostgreSQL inside Supabase, designed for hi
 
 ### Core Database Principles
 1. **Hierarchical Ownership Integrity**: Database-level composite foreign keys enforce that child records (`milestones`, `tasks`) strictly belong to the exact `user_id` and `goal_id` of their parent hierarchy.
-2. **Zero-Overhead RLS**: Every table retains a direct `user_id` column indexed for lightning-fast Row Level Security evaluation (`auth.uid() = user_id`) without requiring subquery JOINs.
+2. **Zero-Overhead RLS**: Every table retains a direct `user_id` column indexed for lightning-fast Row Level Security evaluation (`(select auth.uid()) = user_id`) without requiring subquery JOINs.
 3. **Mandatory Execution Path**: Every task belongs to a milestone, and every milestone belongs to a goal (`Goal -> Milestone -> Task`).
-4. **Idempotence & Non-Destructive Migrations**: Initial setup scripts are re-runnable without wiping existing data.
+4. **Idempotence & Non-Destructive Migrations**: Setup scripts and migrations are re-runnable without wiping existing data.
 
 ---
 
@@ -43,51 +43,44 @@ The Stride v0.1 database is built on PostgreSQL inside Supabase, designed for hi
   - `goal_id` (UUID NOT NULL)
   - `user_id` (UUID NOT NULL)
 - **Composite Foreign Key**: `CONSTRAINT fk_tasks_milestone_hierarchy FOREIGN KEY (milestone_id, goal_id, user_id) REFERENCES public.milestones(id, goal_id, user_id) ON DELETE CASCADE`
-- **Attributes**: `title`, `description`, `scheduled_date` (DATE, default `CURRENT_DATE`), `status` (`task_status`), `priority` (`priority_level`).
+- **Attributes**: `title`, `description`, `scheduled_date` (DATE, default `CURRENT_DATE`), `status` (`task_status`), `priority` (`priority_level`), `sequence_order` (INT NOT NULL DEFAULT 1).
 
 ---
 
 ## 3. Migration & Re-Execution Strategy
 
-- **Baseline Application**: `database/schemas/00_all_schemas.sql` is applied once during initial project setup via Supabase SQL Editor or Supabase CLI.
+- **Baseline Application**: `database/schemas/00_all_schemas.sql` is applied once during initial project setup.
 - **Idempotency Standards**:
   - PostgreSQL `DO $$` blocks check `pg_type` before creating enums (`IF NOT EXISTS`).
   - `DROP POLICY IF EXISTS` is used prior to `CREATE POLICY`.
   - `DROP TRIGGER IF EXISTS` is used prior to `CREATE TRIGGER`.
   - `CREATE TABLE IF NOT EXISTS` and `CREATE INDEX IF NOT EXISTS` guard entity creation.
-- **Future Schema Evolution**:
-  - Schema modifications post-v0.1 will be written as timestamped SQL migration files inside `database/migrations/` (e.g., `20260821_rls_perf_and_fk_indexes.sql`).
-  - Baseline scripts (`database/schemas/`) will be updated in tandem to reflect the state of new baseline deployments.
+- **Timestamped Migrations**:
+  - `20260815_security_hardening.sql`: Hardened search_path and EXECUTE revocations.
+  - `20260820_atomic_goal_creation.sql`: Transactional `create_goal_with_roadmap` RPC.
+  - `20260821_rls_perf_and_fk_indexes.sql`: RLS `(select auth.uid())` subquery performance optimization & FK indexes.
+  - `20260826_task_ordering_and_scheduling.sql`: Adds `tasks.sequence_order`, deterministic backfill, milestone-scoped sorting index `idx_tasks_milestone_seq`, and updates `create_goal_with_roadmap` to schedule only Milestone 1.
+  - `20260827_milestone_progression_rpc.sql`: Transactional task toggling & milestone advancement RPC `toggle_task_and_advance_milestone`.
 
 ---
 
-## 4. Function Security Hardening
+## 4. Function Security Hardening & RPCs
 
-To satisfy security audit standards and eliminate Supabase Database Advisor warnings, database functions enforce an empty search path (`SET search_path = ''`) and privilege boundaries:
+Database functions enforce empty search paths (`SET search_path = ''`), `SECURITY INVOKER`, and explicit privilege boundaries:
 
-1. **`handle_updated_at()`**:
-   - Executes as `SECURITY INVOKER` (default).
-   - Configured with `SET search_path = ''` to completely eliminate search-path manipulation during trigger updates.
-
-2. **`handle_new_user()`**:
-   - Requires **`SECURITY DEFINER`** because it is triggered by an `INSERT` on `auth.users` (managed by Supabase Auth engine) and must write across schema boundaries into `public.profiles`.
-   - Configured with `SET search_path = ''` and fully qualified schema references (`public.profiles`).
-   - **Direct `EXECUTE` Privilege Revocation**: Direct execution rights are explicitly revoked (`REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated`). Normal users cannot call this function as a Remote Procedure Call (RPC).
-   - **Trigger Integrity**: The PostgreSQL trigger `on_auth_user_created ON auth.users` executes the function under trigger definer context, ensuring user registration auto-sync continues to create `public.profiles` records without exposing security risks.
-
----
-
-## 5. Database Performance Optimization & Advisor Records
-
-Migration `20260821_rls_perf_and_fk_indexes.sql` establishes performance optimizations for Supabase Advisor findings:
-
-1. **RLS `auth.uid()` Initialization Optimization (Applied)**:
-   - All 15 RLS policies across `profiles`, `goals`, `milestones`, and `tasks` are updated to use `(select auth.uid()) = ...`.
-   - Caches the scalar user ID per query statement instead of re-evaluating `auth.uid()` for every scanned row.
-2. **Foreign-Key Supporting Indexes (Applied)**:
-   - Added `idx_milestones_goal_user` ON `milestones(goal_id, user_id)` to cover `fk_milestones_goal_user`.
-   - Added `idx_tasks_milestone_hierarchy` ON `tasks(milestone_id, goal_id, user_id)` to cover `fk_tasks_milestone_hierarchy`.
-3. **Unused Index Warnings (Intentionally Retained)**:
-   - Existing query-support indexes (`idx_milestones_goal_seq`, `idx_tasks_user_scheduled`, `idx_tasks_goal_id`, `idx_tasks_milestone_id`) are intentionally retained as required for upcoming Stride query workloads (Today's Tasks, Goal Detail view, Milestone sequence sorting).
-4. **Leaked Password Protection (Deferred)**:
-   - Deferred because Supabase Leaked Password Protection requires the Supabase Pro+ plan tier. Stride v0.1 is developed on the $0 Supabase Free tier.
+1. **`handle_updated_at()`**: `SECURITY INVOKER`, `SET search_path = ''`.
+2. **`handle_new_user()`**: `SECURITY DEFINER`, `SET search_path = ''`. Executed by auth trigger only.
+3. **`create_goal_with_roadmap(p_title, p_description, p_target_date, p_priority, p_roadmap)`**:
+   - `SECURITY INVOKER`, `SET search_path = ''`.
+   - Atomically inserts Goal, Milestones, and Tasks inside a single PostgreSQL transaction.
+   - Assigns `sequence_order` starting at 1 for both milestones and tasks.
+   - Schedules ONLY Milestone 1 tasks (`sequence_order = 1`) for `CURRENT_DATE`. Milestone 2+ tasks receive `scheduled_date = NULL`.
+   - Executable ONLY by `authenticated` role (`REVOKE` from `PUBLIC`, `anon`).
+4. **`toggle_task_and_advance_milestone(p_task_id)`**:
+   - `SECURITY INVOKER`, `SET search_path = ''`.
+   - Acquires row lock `FOR UPDATE OF t` on target task to prevent race conditions.
+   - Toggles task completion status (`todo` $\leftrightarrow$ `completed`).
+   - When transitioning INTO `completed`, evaluates if all tasks in the current milestone are completed.
+   - If current milestone is 100% completed, locates the next milestone (`sequence_order + 1`) and schedules its `NULL` tasks for `CURRENT_DATE`.
+   - Toggling a task back to `todo` preserves previously activated milestone scheduling (non-destructive forward progress).
+   - Executable ONLY by `authenticated` role (`REVOKE` from `PUBLIC`, `anon`).
