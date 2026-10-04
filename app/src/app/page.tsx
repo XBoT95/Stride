@@ -14,11 +14,15 @@ export default async function DashboardPage() {
     redirect('/login');
   }
 
-  const profile = await AuthService.getProfile();
-  const { tasks: todayTasks } = await TaskService.getTodayTasks();
-  const { goals } = await GoalService.getGoals();
+  // Execute independent service calls concurrently using Promise.all
+  const [profile, { tasks: todayTasks }, { goals }] = await Promise.all([
+    AuthService.getProfile(),
+    TaskService.getTodayTasks(),
+    GoalService.getGoals(),
+  ]);
 
   const activeGoals = (goals || []).filter((g) => g.status !== 'archived');
+  const hasGoals = activeGoals.length > 0;
 
   return (
     <div className="min-h-screen bg-black text-zinc-100 flex flex-col">
@@ -47,11 +51,11 @@ export default async function DashboardPage() {
 
         {/* Primary Execution Area: Today's Tasks */}
         <section className="space-y-6">
-          <TaskList tasks={todayTasks} />
+          <TaskList tasks={todayTasks} hasGoals={hasGoals} />
         </section>
 
         {/* Active Goals Overview */}
-        {activeGoals.length > 0 && (
+        {hasGoals && (
           <section className="space-y-4 pt-4">
             <header className="flex items-center justify-between px-1">
               <h2 className="text-sm font-semibold text-zinc-300 tracking-wide uppercase">

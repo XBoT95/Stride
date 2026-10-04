@@ -8,6 +8,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [0.1.0] - 2026-09-03
 
+### 2026-10-04 17:12:00 +0530
+
+#### feat(dashboard): product polish pass — error handling, parallel fetching, empty states, and task carry-forward
+
+**Summary**
+Implemented Batch 1 of Dashboard product polish based on the read-only audit: resolved the overdue task rollover bug by carrying forward incomplete scheduled tasks (`scheduled_date <= today`) in `TaskService.getTodayTasks()`, captured `toggleTaskAction` errors in `TaskItem` with accessible inline feedback, refactored Dashboard data fetching to execute service queries in parallel via `Promise.all`, and updated `TaskList` empty states to distinguish between 0-goal onboarding vs all-tasks-completed daily focus states.
+
+**Files Changed**
+
+| File | Status | Lines Added | Lines Removed |
+|---|---|---:|---:|
+| `app/src/app/page.tsx` | Modified | 10 | 5 |
+| `app/src/components/tasks/TaskItem.tsx` | Modified | 13 | 1 |
+| `app/src/components/tasks/TaskList.tsx` | Modified | 34 | 12 |
+| `app/src/services/task.service.ts` | Modified | 21 | 8 |
+
+**Implementation Details**
+- **Overdue Task Carry-Forward**: Updated `TaskService.getTodayTasks()` to query `scheduled_date <= today`, ensuring unfinished tasks from previous days carry forward into Today's Focus without mutating their historical `scheduled_date`. Excludes tasks completed on previous days while keeping tasks completed today visible with line-through styling. Future milestone tasks (`scheduled_date = NULL`) remain safely hidden.
+- **Task Toggle Error Handling**: Added `error` state and `role="alert"` inline feedback in `TaskItem.tsx` to display server-action failures clearly without breaking deterministic ordering or completion flow.
+- **Parallel Data Fetching**: Refactored `DashboardPage` (`page.tsx`) to concurrently execute `AuthService.getProfile()`, `TaskService.getTodayTasks()`, and `GoalService.getGoals()` using `Promise.all()`.
+- **Empty States**: Updated `TaskList.tsx` to render a primary "Create Your First Goal" CTA when 0 active goals exist, and a calm "All caught up for today" card when active goals exist but no tasks remain scheduled for today.
+
+**Validation**
+- `pnpm exec tsc --noEmit`: 0 errors.
+- `pnpm lint`: 0 warnings/errors.
+- `pnpm build`: Next.js 16.3.0 production build compiled clean.
+
+---
+
 ### 2026-09-03 22:15:00 +0530
 
 #### feat(dashboard): improve task display and goal management

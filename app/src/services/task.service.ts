@@ -34,29 +34,49 @@ interface RawTaskRow {
 
 export class TaskService {
   /**
-   * Retrieves tasks scheduled for today for the authenticated user, fetching Goal titles
-   * and parent Milestone sequence orders to sort deterministically by (milestone.sequence_order ASC, task.sequence_order ASC).
+   * Retrieves tasks for Today's Focus for the authenticated user, including:
+   * 1. Tasks scheduled for today.
+   * 2. Incomplete tasks scheduled before today (carry-forward).
+   * 3. Tasks completed today (so today's progress remains visible with line-through).
+   * Excludes historical tasks completed on previous days, archived tasks, and future milestones (scheduled_date = NULL).
+   * Sorts deterministically by (milestone.sequence_order ASC, task.sequence_order ASC, created_at ASC).
    */
   static async getTodayTasks(): Promise<GetTodayTasksResult> {
     try {
       const supabase = await createServerClient();
 
-      // 1. Fetch today's tasks for authenticated user
+      // 1. Fetch actionable and overdue tasks for authenticated user (scheduled_date <= today)
       const { data: rawTasks, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
-        .eq('scheduled_date', 'today')
+        .lte('scheduled_date', 'today')
         .neq('status', 'archived');
 
       if (tasksError || !rawTasks) {
         return { tasks: null, error: 'Unable to retrieve today tasks.' };
       }
 
-      if (rawTasks.length === 0) {
+      const todayDateStr = new Date().toISOString().slice(0, 10);
+
+      // Filter: Keep all incomplete tasks (today + carry-forward) and tasks completed today.
+      // Exclude historical tasks completed on previous days.
+      const rawTaskRows = (rawTasks as unknown as RawTaskRow[]).filter((t) => {
+        if (t.status !== 'completed') {
+          return true;
+        }
+        const isScheduledToday = t.scheduled_date
+          ? t.scheduled_date === todayDateStr
+          : false;
+        const isUpdatedToday = t.updated_at
+          ? t.updated_at.slice(0, 10) === todayDateStr
+          : false;
+        return isScheduledToday || isUpdatedToday;
+      });
+
+      if (rawTaskRows.length === 0) {
         return { tasks: [], error: null };
       }
 
-      const rawTaskRows = rawTasks as unknown as RawTaskRow[];
       const goalIds = Array.from(new Set(rawTaskRows.map((t) => t.goal_id)));
       const milestoneIds = Array.from(
         new Set(rawTaskRows.map((t) => t.milestone_id))

@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { toggleTaskAction } from '@/app/goals/actions';
 import type { Task } from '@/types';
 import { CheckCircle2, Circle, Loader2 } from 'lucide-react';
@@ -11,11 +11,16 @@ interface TaskItemProps {
 
 export function TaskItem({ task }: TaskItemProps) {
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const isCompleted = task.status === 'completed';
 
   const handleToggle = () => {
+    setError(null);
     startTransition(async () => {
-      await toggleTaskAction(task.id);
+      const res = await toggleTaskAction(task.id);
+      if (res?.error) {
+        setError(res.error);
+      }
     });
   };
 
@@ -81,6 +86,11 @@ export function TaskItem({ task }: TaskItemProps) {
             }`}
           >
             {task.description}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-xs text-rose-400 font-medium pt-1">
+            {error}
           </p>
         )}
       </div>
