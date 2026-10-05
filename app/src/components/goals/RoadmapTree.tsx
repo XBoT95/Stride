@@ -40,6 +40,15 @@ export function RoadmapTree({ goal }: RoadmapTreeProps) {
     0
   );
 
+  // Derive active milestone: the earliest milestone containing at least one incomplete task.
+  // If every milestone is complete, activeSequenceOrder is null and no milestones are locked.
+  const activeMilestone = sortedMilestones.find((milestone) =>
+    (milestone.tasks || []).some((task) => task.status !== 'completed')
+  );
+  const activeSequenceOrder = activeMilestone
+    ? activeMilestone.sequenceOrder
+    : null;
+
   return (
     <article className="space-y-8">
       {/* Goal Header Summary */}
@@ -85,41 +94,47 @@ export function RoadmapTree({ goal }: RoadmapTreeProps) {
 
       {/* Sequential Milestones & Interactive Tasks */}
       <section className="space-y-6" aria-label="Execution Roadmap">
-        {sortedMilestones.map((milestone) => (
-          <div
-            key={milestone.id}
-            className="p-5 bg-zinc-950 border border-zinc-800/90 rounded-xl space-y-4"
-          >
-            {/* Milestone Header */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[11px] font-mono font-semibold text-zinc-300">
-                    Milestone {milestone.sequenceOrder}
-                  </span>
-                  <h2 className="text-base font-semibold text-zinc-200">
-                    {milestone.title}
-                  </h2>
-                </div>
-                {milestone.description && (
-                  <p className="text-xs text-zinc-400 pl-0.5">
-                    {milestone.description}
-                  </p>
-                )}
-              </div>
-              <span className="text-[11px] px-2 py-0.5 rounded border border-zinc-800 text-zinc-400 font-medium capitalize shrink-0">
-                {milestone.status}
-              </span>
-            </div>
+        {sortedMilestones.map((milestone) => {
+          const isLocked =
+            activeSequenceOrder !== null &&
+            milestone.sequenceOrder > activeSequenceOrder;
 
-            {/* Milestone Tasks List with Interactive TaskItem Components */}
-            <div className="space-y-2.5 pt-1">
-              {(milestone.tasks || []).map((task) => (
-                <TaskItem key={task.id} task={task} />
-              ))}
+          return (
+            <div
+              key={milestone.id}
+              className="p-5 bg-zinc-950 border border-zinc-800/90 rounded-xl space-y-4"
+            >
+              {/* Milestone Header */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-[11px] font-mono font-semibold text-zinc-300">
+                      Milestone {milestone.sequenceOrder}
+                    </span>
+                    <h2 className="text-base font-semibold text-zinc-200">
+                      {milestone.title}
+                    </h2>
+                  </div>
+                  {milestone.description && (
+                    <p className="text-xs text-zinc-400 pl-0.5">
+                      {milestone.description}
+                    </p>
+                  )}
+                </div>
+                <span className="text-[11px] px-2 py-0.5 rounded border border-zinc-800 text-zinc-400 font-medium capitalize shrink-0">
+                  {milestone.status}
+                </span>
+              </div>
+
+              {/* Milestone Tasks List with Interactive TaskItem Components */}
+              <div className="space-y-2.5 pt-1">
+                {(milestone.tasks || []).map((task) => (
+                  <TaskItem key={task.id} task={task} isLocked={isLocked} />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </section>
     </article>
   );

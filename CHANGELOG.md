@@ -8,6 +8,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [0.1.0] - 2026-09-03
 
+### 2026-10-05 19:55:00 +0530
+
+#### feat(goals): lock future milestone tasks and add RPC progression guard
+
+**Summary**
+Implemented Step 1 of Goal Detail / Roadmap product polish: derived the active milestone dynamically in `RoadmapTree` (defined as the earliest milestone in sequence containing at least one incomplete task), rendered future milestone tasks as non-interactive with disabled states and Lock icons in `TaskItem`, and authored PostgreSQL migration `20261005_guard_milestone_progression.sql` to authoritatively prevent out-of-order task toggling across both completion and reopening directions.
+
+**Files Changed**
+
+| File | Status | Lines Added | Lines Removed |
+|---|---|---:|---:|
+| `app/src/components/goals/RoadmapTree.tsx` | Modified | 46 | 31 |
+| `app/src/components/tasks/TaskItem.tsx` | Modified | 17 | 8 |
+| `database/migrations/20261005_guard_milestone_progression.sql` | Added | 104 | 0 |
+
+**Implementation Details**
+- **Active Milestone Derivation**: In `RoadmapTree.tsx`, identified the active milestone by querying the earliest milestone by `sequenceOrder ASC` where `tasks.some(t => t.status !== 'completed')`. Milestones with `sequenceOrder > activeSequenceOrder` are flagged as locked (`isLocked = true`).
+- **Locked Task Interactions**: Updated `TaskItem.tsx` with an `isLocked` prop that disables the toggle button (`disabled={isPending || isLocked}`), renders a subtle Lock icon (`<Lock className="w-5 h-5 text-zinc-600" />`) in place of the open circle, guards `handleToggle` against locked triggers, and applies accessible attributes (`aria-disabled="true"`, informative `aria-label`).
+- **RPC Progression Invariant Guard**: Authored `database/migrations/20261005_guard_milestone_progression.sql`, replacing `toggle_task_and_advance_milestone(p_task_id)`. Before toggling a task, the function evaluates `SELECT MIN(m.sequence_order) ... WHERE t.status != 'completed'` for the goal. If the target task belongs to a later milestone than the active milestone, the RPC raises `Cannot modify tasks in a locked milestone` and rolls back without mutating task status or scheduling.
+
+**Validation**
+- `pnpm exec tsc --noEmit`: 0 errors.
+- `pnpm lint`: 0 warnings/errors.
+- `pnpm build`: Next.js 16.3.0 production build compiled clean.
+- `git diff --check`: Clean, zero whitespace errors.
+
+---
+
 ### 2026-10-04 17:12:00 +0530
 
 #### feat(dashboard): product polish pass — error handling, parallel fetching, empty states, and task carry-forward
