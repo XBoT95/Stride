@@ -1,10 +1,43 @@
 import type { GoalWithDetails } from '@/services/goal.service';
 import type { PriorityLevel } from '@/types';
 import { TaskItem } from '@/components/tasks/TaskItem';
-import { Calendar, Flag, Layers } from 'lucide-react';
+import { Calendar, Check, Flag, Layers, Lock } from 'lucide-react';
 
 interface RoadmapTreeProps {
   goal: GoalWithDetails;
+}
+
+type DerivedMilestoneStatus = 'completed' | 'in_progress' | 'locked' | 'empty';
+
+function MilestoneStatusBadge({ status }: { status: DerivedMilestoneStatus }) {
+  switch (status) {
+    case 'completed':
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-emerald-800/60 bg-emerald-950/40 text-emerald-400 font-medium shrink-0">
+          <Check className="w-3 h-3" />
+          Completed
+        </span>
+      );
+    case 'in_progress':
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-blue-800/60 bg-blue-950/40 text-blue-300 font-medium shrink-0">
+          In Progress
+        </span>
+      );
+    case 'locked':
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-zinc-800 bg-zinc-900/60 text-zinc-500 font-medium shrink-0">
+          <Lock className="w-3 h-3" />
+          Locked
+        </span>
+      );
+    case 'empty':
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border border-zinc-800 bg-zinc-900/40 text-zinc-500 font-medium shrink-0">
+          No Tasks
+        </span>
+      );
+  }
 }
 
 function PriorityBadge({ priority }: { priority: PriorityLevel }) {
@@ -95,9 +128,21 @@ export function RoadmapTree({ goal }: RoadmapTreeProps) {
       {/* Sequential Milestones & Interactive Tasks */}
       <section className="space-y-6" aria-label="Execution Roadmap">
         {sortedMilestones.map((milestone) => {
+          const tasks = milestone.tasks || [];
+          const hasTasks = tasks.length > 0;
+          const isCompleted =
+            hasTasks && tasks.every((t) => t.status === 'completed');
           const isLocked =
             activeSequenceOrder !== null &&
             milestone.sequenceOrder > activeSequenceOrder;
+
+          const milestoneStatus: DerivedMilestoneStatus = !hasTasks
+            ? 'empty'
+            : isCompleted
+              ? 'completed'
+              : isLocked
+                ? 'locked'
+                : 'in_progress';
 
           return (
             <div
@@ -121,14 +166,12 @@ export function RoadmapTree({ goal }: RoadmapTreeProps) {
                     </p>
                   )}
                 </div>
-                <span className="text-[11px] px-2 py-0.5 rounded border border-zinc-800 text-zinc-400 font-medium capitalize shrink-0">
-                  {milestone.status}
-                </span>
+                <MilestoneStatusBadge status={milestoneStatus} />
               </div>
 
               {/* Milestone Tasks List with Interactive TaskItem Components */}
               <div className="space-y-2.5 pt-1">
-                {(milestone.tasks || []).map((task) => (
+                {tasks.map((task) => (
                   <TaskItem key={task.id} task={task} isLocked={isLocked} />
                 ))}
               </div>

@@ -8,6 +8,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 
 
 ## [0.1.0] - 2026-09-03
 
+### 2026-10-20 19:35:00 +0530
+
+#### feat(roadmap): derive milestone status dynamically from task progress
+
+**Summary**
+Implemented Step 2 of Goal Detail / Roadmap product polish: replaced the stale database column display (`milestones.status`) in `RoadmapTree` with dynamically derived milestone progression states (`Completed`, `In Progress`, `Locked`, `No Tasks`). States are computed directly from child task statuses and the active-milestone invariant established in Step 1, ensuring 100% synchronization on task completion, carry-forward, and reopening without introducing a secondary database source of truth.
+
+**Files Changed**
+
+| File | Status | Lines Added | Lines Removed |
+|---|---|---:|---:|
+| `app/src/components/goals/RoadmapTree.tsx` | Modified | 48 | 5 |
+
+**Implementation Details**
+- **Dynamic Milestone Status Derivation**: Evaluated milestone progress via `DerivedMilestoneStatus` in `RoadmapTree.tsx`: non-empty milestones with 100% finished tasks evaluate to `completed`, the earliest incomplete milestone evaluates to `in_progress`, milestones with sequence orders beyond the active milestone evaluate to `locked`, and milestones containing zero tasks evaluate to `empty` (preventing `[].every()` vacuous truth).
+- **Restrained Status Badge UI**: Replaced raw outline badges with `MilestoneStatusBadge`: subtle emerald styling with `<Check>` for Completed, restrained blue/zinc styling for In Progress, muted zinc styling with `<Lock>` for Locked, and neutral styling for No Tasks.
+- **Single Source of Truth**: Left database schemas, migrations, and RPCs untouched, maintaining tasks as the sole authoritative atomic unit of execution and eliminating desynchronization risks.
+
+**Validation**
+- `pnpm exec tsc --noEmit`: 0 errors.
+- `pnpm lint`: 0 warnings/errors.
+- `pnpm build`: Next.js 16.3.0 production build compiled clean.
+- `git diff --check`: Clean, zero whitespace errors.
+
+---
+
 ### 2026-10-05 19:55:00 +0530
 
 #### feat(goals): lock future milestone tasks and add RPC progression guard
